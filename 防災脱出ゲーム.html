@@ -119,6 +119,68 @@
             margin: 10px auto;
         }
 
+        /* モバイル専用バーチャル十字キー */
+        .virtual-dpad {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 120px;
+            height: 120px;
+            z-index: 1000;
+        }
+
+        .dpad-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 50%;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: 1fr 1fr 1fr;
+            gap: 2px;
+            padding: 8px;
+        }
+
+        .dpad-btn {
+            background: rgba(255, 255, 255, 0.8);
+            border: none;
+            border-radius: 8px;
+            color: #2c3e50;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.1s ease;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dpad-btn:active {
+            background: rgba(255, 255, 255, 1);
+            transform: scale(0.95);
+        }
+
+        .dpad-center {
+            background: rgba(52, 152, 219, 0.8);
+            color: white;
+            font-size: 12px;
+        }
+
+        /* 迷路セルのホバー効果 */
+        .cell.path:hover,
+        .cell.path:active {
+            background: rgba(52, 152, 219, 0.3) !important;
+            cursor: pointer;
+        }
+
+        .cell.reachable {
+            background: rgba(46, 204, 113, 0.2) !important;
+            box-shadow: inset 0 0 0 2px rgba(46, 204, 113, 0.5);
+        }
+
         .control-btn {
             background: #3498db;
             color: white;
@@ -239,15 +301,25 @@
             }
             
             .maze {
-                grid-template-columns: repeat(8, 32px);
-                grid-template-rows: repeat(8, 32px);
+                grid-template-columns: repeat(8, 38px);
+                grid-template-rows: repeat(8, 38px);
                 padding: 3px;
             }
             
             .cell {
-                width: 32px;
-                height: 32px;
-                font-size: 16px;
+                width: 38px;
+                height: 38px;
+                font-size: 18px;
+            }
+
+            /* モバイルでバーチャル十字キーを表示 */
+            .virtual-dpad {
+                display: block;
+            }
+
+            /* 従来のコントロールボタンを隠す */
+            .controls {
+                display: none;
             }
 
             .info-panel {
@@ -312,14 +384,21 @@
             }
 
             .maze {
-                grid-template-columns: repeat(8, 28px);
-                grid-template-rows: repeat(8, 28px);
+                grid-template-columns: repeat(8, 34px);
+                grid-template-rows: repeat(8, 34px);
             }
             
             .cell {
-                width: 28px;
-                height: 28px;
-                font-size: 14px;
+                width: 34px;
+                height: 34px;
+                font-size: 16px;
+            }
+
+            .virtual-dpad {
+                width: 100px;
+                height: 100px;
+                bottom: 15px;
+                right: 15px;
             }
 
             .control-buttons {
@@ -393,6 +472,21 @@
                 
                 <button class="btn restart-btn" onclick="restartGame()">ゲームリセット</button>
             </div>
+        </div>
+    </div>
+
+    <!-- モバイル専用バーチャル十字キー -->
+    <div class="virtual-dpad" id="virtualDpad">
+        <div class="dpad-container">
+            <div></div>
+            <div class="dpad-btn" data-direction="up">↑</div>
+            <div></div>
+            <div class="dpad-btn" data-direction="left">←</div>
+            <div class="dpad-center">防災</div>
+            <div class="dpad-btn" data-direction="right">→</div>
+            <div></div>
+            <div class="dpad-btn" data-direction="down">↓</div>
+            <div></div>
         </div>
     </div>
 
@@ -537,6 +631,11 @@
 
             // スコア更新
             document.getElementById('items').textContent = itemsCollected;
+            
+            // モバイルでヒント表示
+            if (window.innerWidth <= 768) {
+                updateReachableHints();
+            }
         }
 
         // プレイヤー移動
@@ -698,25 +797,63 @@
             }
         });
 
-        // タッチ・スワイプ操作
+        // バーチャル十字キーの設定
+        function setupVirtualDpad() {
+            const dpadButtons = document.querySelectorAll('.dpad-btn[data-direction]');
+            
+            dpadButtons.forEach(button => {
+                // タッチイベント
+                button.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    const direction = button.getAttribute('data-direction');
+                    movePlayer(direction);
+                    button.style.background = 'rgba(255, 255, 255, 1)';
+                    
+                    // バイブレーション
+                    if (navigator.vibrate) {
+                        navigator.vibrate(50);
+                    }
+                });
+
+                button.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    button.style.background = 'rgba(255, 255, 255, 0.8)';
+                });
+
+                // クリックイベント（デスクトップでのテスト用）
+                button.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const direction = button.getAttribute('data-direction');
+                    movePlayer(direction);
+                });
+            });
+        }
+
+        // 改善されたスワイプ操作（迷路エリアのみ）
         let touchStartX = 0;
         let touchStartY = 0;
         let touchEndX = 0;
         let touchEndY = 0;
 
-        document.addEventListener('touchstart', (e) => {
-            touchStartX = e.changedTouches[0].screenX;
-            touchStartY = e.changedTouches[0].screenY;
-        }, false);
+        function setupMazeSwipe() {
+            const maze = document.getElementById('maze');
+            
+            maze.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                touchStartX = e.changedTouches[0].clientX;
+                touchStartY = e.changedTouches[0].clientY;
+            }, { passive: false });
 
-        document.addEventListener('touchend', (e) => {
-            touchEndX = e.changedTouches[0].screenX;
-            touchEndY = e.changedTouches[0].screenY;
-            handleSwipe();
-        }, false);
+            maze.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                touchEndX = e.changedTouches[0].clientX;
+                touchEndY = e.changedTouches[0].clientY;
+                handleMazeSwipe();
+            }, { passive: false });
+        }
 
-        function handleSwipe() {
-            const minSwipeDistance = 50;
+        function handleMazeSwipe() {
+            const minSwipeDistance = 80; // より長い距離を要求
             const deltaX = touchEndX - touchStartX;
             const deltaY = touchEndY - touchStartY;
 
@@ -724,14 +861,15 @@
                 return;
             }
 
-            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+            // より厳密な方向判定
+            if (Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
                 // 水平方向のスワイプ
                 if (deltaX > 0) {
                     movePlayer('right');
                 } else {
                     movePlayer('left');
                 }
-            } else {
+            } else if (Math.abs(deltaY) > Math.abs(deltaX) * 1.5) {
                 // 垂直方向のスワイプ
                 if (deltaY > 0) {
                     movePlayer('down');
@@ -741,19 +879,29 @@
             }
         }
 
-        // 迷路セルをタップで移動（隣接セルのみ）
+        // 改善されたセルタップ操作
         function setupCellTouchHandlers() {
             for (let y = 0; y < MAZE_SIZE; y++) {
                 for (let x = 0; x < MAZE_SIZE; x++) {
                     const cell = document.getElementById(`cell-${x}-${y}`);
                     if (cell && mazePattern[y][x] === 0) {
+                        // タッチイベント
                         cell.addEventListener('touchend', (e) => {
                             e.preventDefault();
+                            e.stopPropagation();
                             handleCellTap(x, y);
                         });
+                        
+                        // クリックイベント（デスクトップ用）
                         cell.addEventListener('click', (e) => {
                             e.preventDefault();
+                            e.stopPropagation();
                             handleCellTap(x, y);
+                        });
+
+                        // ホバー効果でヒント表示
+                        cell.addEventListener('mouseenter', () => {
+                            updateReachableHints();
                         });
                     }
                 }
@@ -763,14 +911,70 @@
         function handleCellTap(targetX, targetY) {
             const deltaX = targetX - playerPos.x;
             const deltaY = targetY - playerPos.y;
+            const distance = Math.abs(deltaX) + Math.abs(deltaY);
 
-            // 隣接セルかどうかチェック
-            if (Math.abs(deltaX) + Math.abs(deltaY) === 1) {
+            // 隣接セル（1マス移動）
+            if (distance === 1) {
                 if (deltaX === 1) movePlayer('right');
                 else if (deltaX === -1) movePlayer('left');
                 else if (deltaY === 1) movePlayer('down');
                 else if (deltaY === -1) movePlayer('up');
+                
+                // 成功バイブレーション
+                if (navigator.vibrate) {
+                    navigator.vibrate(30);
+                }
             }
+            // 2マス以内の移動（連続移動）
+            else if (distance === 2 && (deltaX === 0 || deltaY === 0)) {
+                let direction;
+                if (deltaX === 2) direction = 'right';
+                else if (deltaX === -2) direction = 'left';
+                else if (deltaY === 2) direction = 'down';
+                else if (deltaY === -2) direction = 'up';
+
+                // 途中に壁がないかチェック
+                let midX = playerPos.x + (deltaX / 2);
+                let midY = playerPos.y + (deltaY / 2);
+                
+                if (mazePattern[midY][midX] === 0) {
+                    // 2回移動
+                    movePlayer(direction);
+                    setTimeout(() => movePlayer(direction), 150);
+                    
+                    if (navigator.vibrate) {
+                        navigator.vibrate([30, 50, 30]);
+                    }
+                }
+            }
+        }
+
+        // 到達可能セルのヒント表示
+        function updateReachableHints() {
+            // 既存のヒントをクリア
+            document.querySelectorAll('.cell.reachable').forEach(cell => {
+                cell.classList.remove('reachable');
+            });
+
+            // 隣接セルをハイライト
+            const directions = [
+                {x: 0, y: -1}, {x: 0, y: 1},
+                {x: -1, y: 0}, {x: 1, y: 0}
+            ];
+
+            directions.forEach(dir => {
+                const newX = playerPos.x + dir.x;
+                const newY = playerPos.y + dir.y;
+                
+                if (newX >= 0 && newX < MAZE_SIZE && newY >= 0 && newY < MAZE_SIZE) {
+                    if (mazePattern[newY][newX] === 0) {
+                        const cell = document.getElementById(`cell-${newX}-${newY}`);
+                        if (cell) {
+                            cell.classList.add('reachable');
+                        }
+                    }
+                }
+            });
         }
 
         // モーダルクリックで閉じる
@@ -784,6 +988,8 @@
         initializeItems();
         createMaze();
         setupCellTouchHandlers();
+        setupVirtualDpad();
+        setupMazeSwipe();
     </script>
 </body>
 </html>
