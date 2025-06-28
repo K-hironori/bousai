@@ -202,7 +202,6 @@
         .enemy.tornado {
             background: linear-gradient(45deg, #9b59b6, #3498db) !important;
             color: white;
-            animation: tornadoSpin 1s infinite linear;
         }
 
         @keyframes fireFlicker {
@@ -216,10 +215,6 @@
             75% { transform: translateX(1px); }
         }
 
-        @keyframes tornadoSpin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
 
         /* 危険エリアの表示 */
         .cell.danger-zone {
