@@ -209,20 +209,130 @@
             background: #c0392b;
         }
 
+        .desktop-only {
+            display: inline;
+        }
+
         @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .game-container {
+                padding: 15px;
+                margin: 10px;
+            }
+
+            h1 {
+                font-size: 24px;
+                margin-bottom: 8px;
+            }
+
+            .subtitle {
+                font-size: 14px;
+                margin-bottom: 15px;
+            }
+
             .game-area {
                 flex-direction: column;
+                gap: 15px;
             }
             
             .maze {
-                grid-template-columns: repeat(8, 35px);
-                grid-template-rows: repeat(8, 35px);
+                grid-template-columns: repeat(8, 32px);
+                grid-template-rows: repeat(8, 32px);
+                padding: 3px;
             }
             
             .cell {
-                width: 35px;
-                height: 35px;
-                font-size: 18px;
+                width: 32px;
+                height: 32px;
+                font-size: 16px;
+            }
+
+            .info-panel {
+                min-width: unset;
+                width: 100%;
+                padding: 12px;
+            }
+
+            .score {
+                font-size: 16px;
+                margin-bottom: 8px;
+            }
+
+            .tips {
+                padding: 8px;
+                margin-top: 8px;
+            }
+
+            .tips h4 {
+                font-size: 14px;
+                margin-bottom: 5px;
+            }
+
+            .tips p, .tips ul {
+                font-size: 12px;
+            }
+
+            .control-buttons {
+                max-width: 120px;
+            }
+
+            .control-btn {
+                padding: 8px;
+                font-size: 14px;
+            }
+
+            .modal-content {
+                margin: 10% auto;
+                padding: 15px;
+                width: 90%;
+                max-width: 400px;
+            }
+
+            .btn {
+                padding: 8px 16px;
+                font-size: 14px;
+            }
+
+            .desktop-only {
+                display: none;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .game-container {
+                padding: 10px;
+                margin: 5px;
+            }
+
+            h1 {
+                font-size: 20px;
+            }
+
+            .maze {
+                grid-template-columns: repeat(8, 28px);
+                grid-template-rows: repeat(8, 28px);
+            }
+            
+            .cell {
+                width: 28px;
+                height: 28px;
+                font-size: 14px;
+            }
+
+            .control-buttons {
+                max-width: 100px;
+            }
+
+            .control-btn {
+                padding: 6px;
+                font-size: 12px;
+            }
+
+            .tips p, .tips ul {
+                font-size: 11px;
             }
         }
     </style>
@@ -246,7 +356,10 @@
                         <button class="control-btn" onclick="movePlayer('right')">→</button>
                     </div>
                     <p style="text-align: center; margin-top: 10px;">
-                        <small>キーボードの矢印キーでも操作できます</small>
+                        <small>
+                            <span class="desktop-only">キーボードの矢印キー、</span>
+                            画面スワイプ、隣接セルタップで操作
+                        </small>
                     </p>
                 </div>
             </div>
@@ -463,6 +576,10 @@
                         itemsCollected++;
                         console.log(`アイテム${index + 1}を収集しました！位置: (${item.x}, ${item.y})`);
                         showMessage(`防災アイテム${index + 1}を入手しました！`, 'success');
+                        // バイブレーション効果（モバイル）
+                        if (navigator.vibrate) {
+                            navigator.vibrate(200);
+                        }
                     }
                 });
 
@@ -496,6 +613,11 @@
             clearInterval(gameTimer);
             document.getElementById('finalTime').textContent = gameTime;
             document.getElementById('finalItems').textContent = itemsCollected;
+            
+            // 勝利バイブレーション（モバイル）
+            if (navigator.vibrate) {
+                navigator.vibrate([200, 100, 200, 100, 200]);
+            }
             
             let message = '';
             if (gameTime <= 30) {
@@ -576,6 +698,81 @@
             }
         });
 
+        // タッチ・スワイプ操作
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchEndX = 0;
+        let touchEndY = 0;
+
+        document.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+            touchStartY = e.changedTouches[0].screenY;
+        }, false);
+
+        document.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            touchEndY = e.changedTouches[0].screenY;
+            handleSwipe();
+        }, false);
+
+        function handleSwipe() {
+            const minSwipeDistance = 50;
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+
+            if (Math.abs(deltaX) < minSwipeDistance && Math.abs(deltaY) < minSwipeDistance) {
+                return;
+            }
+
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                // 水平方向のスワイプ
+                if (deltaX > 0) {
+                    movePlayer('right');
+                } else {
+                    movePlayer('left');
+                }
+            } else {
+                // 垂直方向のスワイプ
+                if (deltaY > 0) {
+                    movePlayer('down');
+                } else {
+                    movePlayer('up');
+                }
+            }
+        }
+
+        // 迷路セルをタップで移動（隣接セルのみ）
+        function setupCellTouchHandlers() {
+            for (let y = 0; y < MAZE_SIZE; y++) {
+                for (let x = 0; x < MAZE_SIZE; x++) {
+                    const cell = document.getElementById(`cell-${x}-${y}`);
+                    if (cell && mazePattern[y][x] === 0) {
+                        cell.addEventListener('touchend', (e) => {
+                            e.preventDefault();
+                            handleCellTap(x, y);
+                        });
+                        cell.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            handleCellTap(x, y);
+                        });
+                    }
+                }
+            }
+        }
+
+        function handleCellTap(targetX, targetY) {
+            const deltaX = targetX - playerPos.x;
+            const deltaY = targetY - playerPos.y;
+
+            // 隣接セルかどうかチェック
+            if (Math.abs(deltaX) + Math.abs(deltaY) === 1) {
+                if (deltaX === 1) movePlayer('right');
+                else if (deltaX === -1) movePlayer('left');
+                else if (deltaY === 1) movePlayer('down');
+                else if (deltaY === -1) movePlayer('up');
+            }
+        }
+
         // モーダルクリックで閉じる
         document.getElementById('winModal').addEventListener('click', (e) => {
             if (e.target === document.getElementById('winModal')) {
@@ -586,6 +783,7 @@
         // ゲーム初期化
         initializeItems();
         createMaze();
+        setupCellTouchHandlers();
     </script>
 </body>
 </html>
