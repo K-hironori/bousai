@@ -340,6 +340,8 @@
                 { x: 7, y: 5, collected: false },
                 { x: 3, y: 8, collected: false }
             ];
+            console.log('アイテム初期化:', items);
+            console.log('迷路サイズ:', MAZE_SIZE);
         }
 
         // 迷路を生成
@@ -393,12 +395,15 @@
             }
 
             // アイテムを配置
-            items.forEach(item => {
+            items.forEach((item, index) => {
                 if (!item.collected) {
                     const cell = document.getElementById(`cell-${item.x}-${item.y}`);
                     if (cell) {
                         cell.classList.add('item');
                         cell.textContent = '🎒';
+                        console.log(`アイテム${index + 1}を配置: (${item.x}, ${item.y})`);
+                    } else {
+                        console.error(`アイテム${index + 1}のセルが見つかりません: cell-${item.x}-${item.y}`);
                     }
                 }
             });
@@ -449,13 +454,15 @@
             if (mazePattern[newY][newX] === 0) {
                 playerPos.x = newX;
                 playerPos.y = newY;
+                console.log(`プレイヤー位置: (${playerPos.x}, ${playerPos.y})`);
 
                 // アイテム収集チェック
-                items.forEach(item => {
+                items.forEach((item, index) => {
                     if (!item.collected && item.x === playerPos.x && item.y === playerPos.y) {
                         item.collected = true;
                         itemsCollected++;
-                        showMessage('防災アイテムを入手しました！', 'success');
+                        console.log(`アイテム${index + 1}を収集しました！位置: (${item.x}, ${item.y})`);
+                        showMessage(`防災アイテム${index + 1}を入手しました！`, 'success');
                     }
                 });
 
