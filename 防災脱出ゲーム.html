@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>防災脱出ゲーム - 安全に避難しよう！</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #87CEEB, #FFE4E1);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .game-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin: 20px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #34495e;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+
+        .game-area {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .maze-container {
+            background: #f8f9fa;
+            border: 3px solid #34495e;
+            border-radius: 10px;
+            padding: 10px;
+        }
+
+        .maze {
+            display: grid;
+            grid-template-columns: repeat(10, 40px);
+            grid-template-rows: repeat(10, 40px);
+            gap: 2px;
+            background: #2c3e50;
+            padding: 5px;
+            border-radius: 5px;
+        }
+
+        .cell {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            border-radius: 3px;
+        }
+
+        .path {
+            background: #ecf0f1;
+        }
+
+        .wall {
+            background: #2c3e50;
+        }
+
+        .player {
+            background: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+
+        .exit {
+            background: #e74c3c;
+            color: white;
+            font-weight: bold;
+        }
+
+        .item {
+            background: #f39c12;
+            color: white;
+            font-weight: bold;
+        }
+
+        .controls {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .controls h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+
+        .control-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            max-width: 150px;
+            margin: 10px auto;
+        }
+
+        .control-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        .control-btn:hover {
+            background: #2980b9;
+        }
+
+        .control-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        .info-panel {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 10px;
+            min-width: 200px;
+        }
+
+        .score {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .tips {
+            background: #d5dbdb;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        .tips h4 {
+            margin-top: 0;
+            color: #e74c3c;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .btn {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            background: #219a52;
+        }
+
+        .restart-btn {
+            background: #e74c3c;
+        }
+
+        .restart-btn:hover {
+            background: #c0392b;
+        }
+
+        @media (max-width: 768px) {
+            .game-area {
+                flex-direction: column;
+            }
+            
+            .maze {
+                grid-template-columns: repeat(8, 35px);
+                grid-template-rows: repeat(8, 35px);
+            }
+            
+            .cell {
+                width: 35px;
+                height: 35px;
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🚨 防災脱出ゲーム 🚨</h1>
+        <p class="subtitle">地震が発生！安全に避難所まで逃げよう！</p>
+        
+        <div class="game-area">
+            <div class="maze-container">
+                <div class="maze" id="maze"></div>
+                <div class="controls">
+                    <h3>操作方法</h3>
+                    <div class="control-buttons">
+                        <div></div>
+                        <button class="control-btn" onclick="movePlayer('up')">↑</button>
+                        <div></div>
+                        <button class="control-btn" onclick="movePlayer('left')">←</button>
+                        <button class="control-btn" onclick="movePlayer('down')">↓</button>
+                        <button class="control-btn" onclick="movePlayer('right')">→</button>
+                    </div>
+                    <p style="text-align: center; margin-top: 10px;">
+                        <small>キーボードの矢印キーでも操作できます</small>
+                    </p>
+                </div>
+            </div>
+            
+            <div class="info-panel">
+                <div class="score">
+                    <div>時間: <span id="time">0</span>秒</div>
+                    <div>アイテム: <span id="items">0</span>/3</div>
+                </div>
+                
+                <div class="tips">
+                    <h4>🎯 ミッション</h4>
+                    <ul style="text-align: left; font-size: 14px;">
+                        <li>🏃‍♂️ 青い人（あなた）を操作</li>
+                        <li>🎒 防災アイテムを3つ集める</li>
+                        <li>🚪 赤い出口へ避難する</li>
+                        <li>⚡ できるだけ早く脱出しよう</li>
+                    </ul>
+                </div>
+                
+                <div class="tips">
+                    <h4>🧠 防災知識</h4>
+                    <p style="font-size: 14px; text-align: left;">
+                        <strong>地震の時は：</strong><br>
+                        • 机の下に隠れる<br>
+                        • 火を消す<br>
+                        • ドアを開けて逃げ道を確保<br>
+                        • 落ち着いて避難する
+                    </p>
+                </div>
+                
+                <button class="btn restart-btn" onclick="restartGame()">ゲームリセット</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 勝利モーダル -->
+    <div id="winModal" class="modal">
+        <div class="modal-content">
+            <h2>🎉 おめでとう！🎉</h2>
+            <p>無事に避難できました！</p>
+            <p>クリア時間: <span id="finalTime"></span>秒</p>
+            <p>防災アイテム: <span id="finalItems"></span>/3個</p>
+            <div id="winMessage"></div>
+            <button class="btn" onclick="restartGame()">もう一度プレイ</button>
+        </div>
+    </div>
+
+    <script>
+        // ゲーム設定
+        const MAZE_SIZE = window.innerWidth <= 768 ? 8 : 10;
+        let gameStarted = false;
+        let gameTime = 0;
+        let gameTimer;
+        let itemsCollected = 0;
+        let playerPos = { x: 0, y: 0 };
+        let exitPos = { x: MAZE_SIZE - 1, y: MAZE_SIZE - 1 };
+        let items = [];
+
+        // 迷路パターン（1=壁、0=通路）
+        const mazePattern = MAZE_SIZE === 8 ? [
+            [0,0,1,0,0,0,1,0],
+            [0,1,1,0,1,0,1,0],
+            [0,0,0,0,1,0,0,0],
+            [1,1,0,1,1,1,0,1],
+            [0,0,0,0,0,0,0,0],
+            [0,1,1,1,0,1,1,0],
+            [0,0,0,0,0,0,1,0],
+            [1,0,1,0,1,0,0,0]
+        ] : [
+            [0,0,1,0,0,0,1,0,0,0],
+            [0,1,1,0,1,0,1,0,1,0],
+            [0,0,0,0,1,0,0,0,1,0],
+            [1,1,0,1,1,1,0,1,0,0],
+            [0,0,0,0,0,0,0,1,0,1],
+            [0,1,1,1,0,1,0,0,0,0],
+            [0,0,0,0,0,1,1,1,0,1],
+            [1,0,1,0,0,0,0,0,0,0],
+            [0,0,1,1,1,0,1,0,1,0],
+            [0,0,0,0,0,0,1,0,0,0]
+        ];
+
+        // 防災アイテムの位置
+        function initializeItems() {
+            items = MAZE_SIZE === 8 ? [
+                { x: 3, y: 2, collected: false },
+                { x: 6, y: 4, collected: false },
+                { x: 2, y: 6, collected: false }
+            ] : [
+                { x: 4, y: 2, collected: false },
+                { x: 7, y: 5, collected: false },
+                { x: 3, y: 8, collected: false }
+            ];
+        }
+
+        // 迷路を生成
+        function createMaze() {
+            const maze = document.getElementById('maze');
+            maze.innerHTML = '';
+            maze.style.gridTemplateColumns = `repeat(${MAZE_SIZE}, 40px)`;
+            maze.style.gridTemplateRows = `repeat(${MAZE_SIZE}, 40px)`;
+            
+            if (window.innerWidth <= 768) {
+                maze.style.gridTemplateColumns = `repeat(${MAZE_SIZE}, 35px)`;
+                maze.style.gridTemplateRows = `repeat(${MAZE_SIZE}, 35px)`;
+            }
+
+            for (let y = 0; y < MAZE_SIZE; y++) {
+                for (let x = 0; x < MAZE_SIZE; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.id = `cell-${x}-${y}`;
+                    
+                    if (mazePattern[y][x] === 1) {
+                        cell.classList.add('wall');
+                    } else {
+                        cell.classList.add('path');
+                    }
+                    
+                    maze.appendChild(cell);
+                }
+            }
+            
+            // プレイヤー、出口、アイテムを配置
+            updateDisplay();
+        }
+
+        // 表示を更新
+        function updateDisplay() {
+            // 全てのセルをリセット
+            for (let y = 0; y < MAZE_SIZE; y++) {
+                for (let x = 0; x < MAZE_SIZE; x++) {
+                    const cell = document.getElementById(`cell-${x}-${y}`);
+                    if (cell) {
+                        cell.textContent = '';
+                        cell.className = 'cell';
+                        if (mazePattern[y][x] === 1) {
+                            cell.classList.add('wall');
+                        } else {
+                            cell.classList.add('path');
+                        }
+                    }
+                }
+            }
+
+            // アイテムを配置
+            items.forEach(item => {
+                if (!item.collected) {
+                    const cell = document.getElementById(`cell-${item.x}-${item.y}`);
+                    if (cell) {
+                        cell.classList.add('item');
+                        cell.textContent = '🎒';
+                    }
+                }
+            });
+
+            // 出口を配置
+            const exitCell = document.getElementById(`cell-${exitPos.x}-${exitPos.y}`);
+            if (exitCell) {
+                exitCell.classList.add('exit');
+                exitCell.textContent = '🚪';
+            }
+
+            // プレイヤーを配置
+            const playerCell = document.getElementById(`cell-${playerPos.x}-${playerPos.y}`);
+            if (playerCell) {
+                playerCell.classList.add('player');
+                playerCell.textContent = '🏃‍♂️';
+            }
+
+            // スコア更新
+            document.getElementById('items').textContent = itemsCollected;
+        }
+
+        // プレイヤー移動
+        function movePlayer(direction) {
+            if (!gameStarted) {
+                startGame();
+            }
+
+            let newX = playerPos.x;
+            let newY = playerPos.y;
+
+            switch (direction) {
+                case 'up':
+                    newY = Math.max(0, playerPos.y - 1);
+                    break;
+                case 'down':
+                    newY = Math.min(MAZE_SIZE - 1, playerPos.y + 1);
+                    break;
+                case 'left':
+                    newX = Math.max(0, playerPos.x - 1);
+                    break;
+                case 'right':
+                    newX = Math.min(MAZE_SIZE - 1, playerPos.x + 1);
+                    break;
+            }
+
+            // 壁でなければ移動
+            if (mazePattern[newY][newX] === 0) {
+                playerPos.x = newX;
+                playerPos.y = newY;
+
+                // アイテム収集チェック
+                items.forEach(item => {
+                    if (!item.collected && item.x === playerPos.x && item.y === playerPos.y) {
+                        item.collected = true;
+                        itemsCollected++;
+                        showMessage('防災アイテムを入手しました！', 'success');
+                    }
+                });
+
+                // ゴールチェック
+                if (playerPos.x === exitPos.x && playerPos.y === exitPos.y) {
+                    if (itemsCollected === 3) {
+                        winGame();
+                    } else {
+                        showMessage('まだアイテムが足りません！全ての防災アイテムを集めてから避難しましょう。', 'warning');
+                    }
+                }
+
+                updateDisplay();
+            }
+        }
+
+        // ゲーム開始
+        function startGame() {
+            if (gameStarted) return;
+            
+            gameStarted = true;
+            gameTime = 0;
+            gameTimer = setInterval(() => {
+                gameTime++;
+                document.getElementById('time').textContent = gameTime;
+            }, 1000);
+        }
+
+        // ゲーム勝利
+        function winGame() {
+            clearInterval(gameTimer);
+            document.getElementById('finalTime').textContent = gameTime;
+            document.getElementById('finalItems').textContent = itemsCollected;
+            
+            let message = '';
+            if (gameTime <= 30) {
+                message = '素晴らしい！とても速く避難できました！';
+            } else if (gameTime <= 60) {
+                message = 'よくできました！落ち着いて行動できましたね。';
+            } else {
+                message = '無事に避難できました！次回はもっと早く避難してみましょう。';
+            }
+            
+            document.getElementById('winMessage').textContent = message;
+            document.getElementById('winModal').style.display = 'block';
+        }
+
+        // メッセージ表示
+        function showMessage(text, type) {
+            // 簡単なアラート（後で改善可能）
+            const colors = {
+                success: '#27ae60',
+                warning: '#f39c12',
+                error: '#e74c3c'
+            };
+            
+            const messageEl = document.createElement('div');
+            messageEl.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${colors[type] || '#3498db'};
+                color: white;
+                padding: 15px;
+                border-radius: 5px;
+                z-index: 1000;
+                max-width: 300px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            `;
+            messageEl.textContent = text;
+            document.body.appendChild(messageEl);
+            
+            setTimeout(() => {
+                messageEl.remove();
+            }, 3000);
+        }
+
+        // ゲームリセット
+        function restartGame() {
+            clearInterval(gameTimer);
+            gameStarted = false;
+            gameTime = 0;
+            itemsCollected = 0;
+            playerPos = { x: 0, y: 0 };
+            document.getElementById('time').textContent = '0';
+            document.getElementById('items').textContent = '0';
+            document.getElementById('winModal').style.display = 'none';
+            initializeItems();
+            updateDisplay();
+        }
+
+        // キーボード操作
+        document.addEventListener('keydown', (e) => {
+            switch (e.key) {
+                case 'ArrowUp':
+                    e.preventDefault();
+                    movePlayer('up');
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    movePlayer('down');
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    movePlayer('left');
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    movePlayer('right');
+                    break;
+            }
+        });
+
+        // モーダルクリックで閉じる
+        document.getElementById('winModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('winModal')) {
+                document.getElementById('winModal').style.display = 'none';
+            }
+        });
+
+        // ゲーム初期化
+        initializeItems();
+        createMaze();
+    </script>
+</body>
+</html>
